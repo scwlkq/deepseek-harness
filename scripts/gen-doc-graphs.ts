@@ -77,6 +77,7 @@ const GROUP_ORDER = [
   'compact',
   'subagent',
   'tasks',
+  'task-board',
   'workflow',
   'web',
   'spill',
@@ -102,7 +103,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Durable binary attachment storage',
     mode: 'seam',
     implementations: ['attachment-local'],
-    consumers: ['host-runtime', 'llm-pi-ai'],
+    consumers: ['host-runtime', 'llm-pi-ai', 'task-board'],
     note: 'The host commits accepted images before session events; provider adapters resolve authorized durable references into provider-native content.',
   },
   {
@@ -135,7 +136,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'session',
     title: 'In-memory session store',
     mode: 'core',
-    consumers: ['agent-loop', 'agent', 'session-persistence', 'session-query', 'session-query-sqlite', 'subagent-inprocess', 'invariants', 'message-feedback'],
+    consumers: ['agent-loop', 'agent', 'session-persistence', 'session-query', 'session-query-sqlite', 'subagent-inprocess', 'invariants', 'message-feedback', 'task-board'],
     note: 'Owns append-only Session instances and emits the durable session event feed.',
   },
   {
@@ -167,7 +168,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Durable session persistence seam',
     mode: 'seam',
     implementations: ['session-persistence-jsonl', 'session-persistence-sqlite'],
-    consumers: ['agent-loop', 'tool-bash', 'hooks-claude-code', 'hooks-codex', 'session-query', 'session-query-sqlite', 'message-feedback'],
+    consumers: ['agent-loop', 'tool-bash', 'hooks-claude-code', 'hooks-codex', 'session-query', 'session-query-sqlite', 'message-feedback', 'task-board'],
     note: 'Backends persist the same SessionEvent vocabulary; apps choose a backend at composition time.',
   },
   {
@@ -211,7 +212,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'storage-domain',
     title: 'Domain data facility',
     mode: 'core',
-    consumers: ['workspace', 'message-feedback'],
+    consumers: ['workspace', 'message-feedback', 'task-board'],
     note: 'Waits for every configured backend, then publishes the domain form as one lifecycle-bound service for typed durable state.',
   },
   {
@@ -220,6 +221,22 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Lifecycle-bound message feedback',
     mode: 'core',
     note: 'Owns local per-assistant-message feedback, lifecycle and target validation, per-item compare-and-set, and the Host unary Remote contract without entering Session history or telemetry.',
+  },
+  {
+    key: 'taskBoardSession',
+    pkg: 'task-board',
+    title: 'Task-board Session admission seam',
+    mode: 'seam',
+    implementations: ['task-board-session-apiproxy'],
+    consumers: [],
+    note: 'Task Board owns its provider-neutral Session admission service; the Web composition routes create, prompt, and cancel through ordinary Host ApiProxy Session methods.',
+  },
+  {
+    key: 'taskBoard',
+    pkg: 'task-board',
+    title: 'Durable reviewed task workflow',
+    mode: 'core',
+    note: 'Owns cards, execution rounds, Storage Domain compare-and-set writes, Session reconciliation, and the generated taskBoard Remote namespace.',
   },
   {
     key: 'workspaceRegistry',
@@ -544,7 +561,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'apiproxy',
     title: 'Host API dispatch',
     mode: 'core',
-    consumers: ['connection'],
+    consumers: ['connection', 'task-board-session-apiproxy'],
     note: 'The transport-agnostic host gateway face: it dispatches browser API calls, and each open host stream subscribes to the events it forwards rather than being pushed to through a broadcast verb.',
   },
   {

@@ -47,6 +47,9 @@
       "path": "../../runtime-diagnostics/invariants"
     },
     {
+      "path": "../../task-board/task-board"
+    },
+    {
       "path": "../../typert/registry"
     },
     {

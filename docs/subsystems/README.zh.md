@@ -12,6 +12,7 @@
 | [scope.md](scope.md) | 作用域注册标识、dispatch 载体，以及拥有的 `Scope` 上下文 |
 | [typert.md](typert.md) | 远程调用描述符、lookup/Context 声明、Typert 注册表，以及 Host Gateway/Client API 边界 |
 | [goal.md](goal.md) | 持久 goal 标识、生命周期快照、激活、变更记录与 Round 归属 |
+| [task-board.md](task-board.md) | 持久审核任务卡、执行轮次、Session 对账、排序和 Web Remote 投影 |
 | [schedule.md](schedule.md) | 仅限 Session 内的提醒记录、持久转换、活动视图与普通对话交付 |
 | [commands.md](commands.md) | 人类命令注册表服务：定义、适配器发现、直接调用、结果与解析视图 |
 | [session.md](session.md) | 完整的 `SessionEventMap` 变体目录、`TurnTrigger`/`TurnEndReason`、`deriveMessages()`、执行封闭与独立事件 |

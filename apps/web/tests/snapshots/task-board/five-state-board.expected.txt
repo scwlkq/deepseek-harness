@@ -1,0 +1,10 @@
+column=initialized heading=Initialized
+  card=DSH-1Plan authentication boundaryFixture initialized task0 roundsWorking directory
+column=running heading=Running
+  card=DSH-2Implement task board interactionsFixture running task1 roundsWorking directory
+column=review heading=Review
+  card=DSH-3Review release workflowFixture review task1 roundsWorking directory
+column=done heading=Done
+  card=DSH-4Publish operator guideFixture done task1 roundsWorking directory
+column=failed heading=Failed
+  card=DSH-5Repair provider timeoutFixture failed task1 roundsWorking directoryThe deterministic fixture provider timed out.
