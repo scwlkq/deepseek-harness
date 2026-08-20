@@ -1737,6 +1737,128 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'taskBoard',
+    summary: 'Storage authority and generated `taskBoard` Remote methods.',
+    description: 'Storage authority and generated `taskBoard` Remote methods.',
+    methods: [
+      {
+        signature: '@Remote(\'snapshot\') snapshot(): Promise<TaskBoardSnapshotResult>',
+        description: 'Read the board after all previously admitted commits.',
+        parameters: [],
+        returns: 'Immutable board snapshot and global revision.',
+      },
+      {
+        signature: '@Remote(\'create\') async create(request: TaskBoardCreateRequest): Promise<TaskBoardTaskResult>',
+        description: 'Create one durable initialized card and optionally start it.',
+        parameters: [{ name: 'request', description: 'Validated task content and start intent.' }],
+        returns: 'Committed task or a stable request failure.',
+      },
+      {
+        signature: '@Remote(\'edit\') edit(ref: TaskBoardTaskRef, patch: TaskBoardEditPatch): Promise<TaskBoardTaskResult>',
+        description: 'Edit retained task fields after a compare-and-set revision check.',
+        parameters: [{ name: 'ref', description: 'Task identity and observed revision.' }, { name: 'patch', description: 'Replacement fields and optional cwd clearing.' }],
+        returns: 'Committed task, current conflict value, or stable rejection.',
+      },
+      {
+        signature: '@Remote(\'reorder\') reorder( ref: TaskBoardTaskRef, request: TaskBoardReorderRequest, ): Promise<TaskBoardTaskResult>',
+        description: 'Move a card before another card in the same workflow state.',
+        parameters: [{ name: 'ref', description: 'Task identity and observed revision.' }, { name: 'request', description: 'Optional same-column anchor; omission appends.' }],
+        returns: 'Committed moved task or stable rejection.',
+      },
+      {
+        signature: '@Remote(\'start\') start(ref: TaskBoardTaskRef): Promise<TaskBoardTaskResult>',
+        description: 'Start an initialized card in a fresh Harness Session.',
+        parameters: [{ name: 'ref', description: 'Task identity and observed revision.' }],
+        returns: 'Task after prompt admission or a stable rejection.',
+      },
+      {
+        signature: '@Remote(\'reject\') reject( ref: TaskBoardTaskRef, request: TaskBoardRejectRequest, ): Promise<TaskBoardTaskResult>',
+        description: 'Submit review feedback in the current Session.',
+        parameters: [{ name: 'ref', description: 'Reviewed task identity and observed revision.' }, { name: 'request', description: 'Required rejection feedback.' }],
+        returns: 'Task after feedback admission or a stable rejection.',
+      },
+      {
+        signature: '@Remote(\'retry\') retry(ref: TaskBoardTaskRef): Promise<TaskBoardTaskResult>',
+        description: 'Retry a failed task in a fresh Harness Session.',
+        parameters: [{ name: 'ref', description: 'Failed task identity and observed revision.' }],
+        returns: 'Task after retry prompt admission or a stable rejection.',
+      },
+      {
+        signature: '@Remote(\'stop\') stop(ref: TaskBoardTaskRef): Promise<TaskBoardTaskResult>',
+        description: 'Stop the active Session turn and mark the task failed.',
+        parameters: [{ name: 'ref', description: 'Running task identity and observed revision.' }],
+        returns: 'Stopped task or stable Session rejection.',
+      },
+      {
+        signature: '@Remote(\'approve\') approve(ref: TaskBoardTaskRef): Promise<TaskBoardTaskResult>',
+        description: 'Mark a successfully executed reviewed task complete.',
+        parameters: [{ name: 'ref', description: 'Reviewed task identity and observed revision.' }],
+        returns: 'Completed task or stable rejection.',
+      },
+      {
+        signature: '@Remote(\'reopen\') reopen(ref: TaskBoardTaskRef): Promise<TaskBoardTaskResult>',
+        description: 'Reopen an approved card while retaining round summaries.',
+        parameters: [{ name: 'ref', description: 'Completed task identity and observed revision.' }],
+        returns: 'Initialized task or stable rejection.',
+      },
+      {
+        signature: '@Remote(\'delete\') delete(ref: TaskBoardTaskRef): Promise<TaskBoardDeleteResult>',
+        description: 'Delete one card after workflow confirmation rules.',
+        parameters: [{ name: 'ref', description: 'Task identity and observed revision.' }],
+        returns: 'Durable deletion acknowledgement or stable rejection.',
+      },
+      {
+        signature: 'getTask(id: TaskBoardTaskId): TaskBoardTask | undefined',
+        description: 'Read one task from synchronously committed domain memory.',
+        parameters: [{ name: 'id', description: 'Stable task identity.' }],
+        returns: 'Detached immutable task or `undefined` when absent.',
+      },
+      {
+        signature: 'inspectTasks(): readonly TaskBoardTask[]',
+        description: 'Read committed tasks for package-owned invariant checks.',
+        parameters: [],
+        returns: 'Detached immutable tasks in storage iteration order.',
+      },
+      {
+        signature: 'currentBoardRevision(): number',
+        description: 'Read the global revision used to validate emitted board changes.',
+        parameters: [],
+        returns: 'Current committed global board revision.',
+      },
+      {
+        signature: 'async whenSettled(_id: TaskBoardTaskId): Promise<void>',
+        description: 'Wait for every task-board operation admitted before this call.',
+        parameters: [{ name: '_id', description: 'Task identity retained for the package test contract.' }],
+        returns: 'Resolution after the current serial mutation tail settles.',
+      },
+    ],
+  },
+  {
+    key: 'taskBoardSession',
+    summary: 'Provider-neutral Session operations required by Task Board.',
+    description: 'Provider-neutral Session operations required by Task Board.',
+    methods: [
+      {
+        signature: 'abstract create( request: CreateTaskSessionRequest, ): Promise<TaskBoardSessionResult<{ readonly sessionId: SessionId }>>',
+        description: 'Create one Session using the deployment\'s default Agent Preset.',
+        parameters: [{ name: 'request', description: 'reserved identity and optional working directory.' }],
+        returns: 'Session creation result.',
+      },
+      {
+        signature: 'abstract prompt( request: PromptTaskSessionRequest, ): Promise<TaskBoardSessionResult<{ readonly accepted: true }>>',
+        description: 'Queue one ordinary user prompt in a board-owned Session.',
+        parameters: [{ name: 'request', description: 'Session identity, correlation identity and text.' }],
+        returns: 'prompt admission result.',
+      },
+      {
+        signature: 'abstract cancel( request: TaskBoardSessionRequest, ): Promise<TaskBoardSessionResult<{ readonly accepted: true }>>',
+        description: 'Cancel the active turn of a board-owned Session.',
+        parameters: [{ name: 'request', description: 'Session and correlation identities.' }],
+        returns: 'cancellation admission result.',
+      },
+    ],
+  },
+  {
     key: 'terminals',
     summary: 'In-process registry for replaceable PTY backends and exact-Agent sessions.',
     description: 'In-process registry for replaceable PTY backends and exact-Agent sessions.',
@@ -2510,6 +2632,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
+    name: 'task-board/changed',
+    mode: 'emit',
+    signature: '\'task-board/changed\'(change: TaskBoardChange): void',
+    summary: 'Publishes one fully committed task-board mutation.',
+    description: 'Publishes one fully committed task-board mutation.',
+    parameters: [{ name: 'change', description: 'Authoritative task projection or deletion tombstone.' }],
+  },
+  {
     name: 'tools/change',
     mode: 'emit',
     signature: '\'tools/change\'(): void',
@@ -2912,6 +3042,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CreateSessionOptions',
     declaration: 'export interface CreateSessionOptions {\n    readonly seed?: readonly SessionEvent[];\n    readonly meta?: {\n        readonly cwd?: string;\n        readonly parentSession?: SessionId;\n        readonly createdAt?: number;\n        readonly seedLength?: number;\n        readonly origin?: \'subagent\';\n        readonly delegationDepth?: number;\n        readonly agentPreset?: string;\n    };\n}',
+  },
+  {
+    name: 'CreateTaskSessionRequest',
+    declaration: 'export interface CreateTaskSessionRequest extends TaskBoardSessionRequest {\n    readonly cwd?: string;\n}',
   },
   {
     name: 'CredentialInfo',
@@ -3544,6 +3678,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PromptSection',
     declaration: 'export interface PromptSection {\n    readonly name: string;\n    readonly order: number;\n    readonly text: string | ((context: AssembleContext) => string);\n    readonly complete?: boolean;\n}',
+  },
+  {
+    name: 'PromptTaskSessionRequest',
+    declaration: 'export interface PromptTaskSessionRequest extends TaskBoardSessionRequest {\n    readonly text: string;\n}',
   },
   {
     name: 'ProviderRequestId',
@@ -4240,6 +4378,138 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'TableValueOf',
     declaration: 'export type TableValueOf<S extends DomainSpec, N extends keyof S[\'tables\']> = S[\'tables\'][N] extends DomainTableSpec<string, infer V> ? V : never;',
+  },
+  {
+    name: 'TaskBoardChange',
+    declaration: 'export interface TaskBoardChange {\n    readonly boardRevision: number;\n    readonly operation: \'created\' | \'updated\' | \'deleted\';\n    readonly taskId: TaskBoardTaskId;\n    readonly task?: TaskBoardTask;\n}',
+  },
+  {
+    name: 'TaskBoardCreateRequest',
+    declaration: 'export interface TaskBoardCreateRequest {\n    readonly title?: string;\n    readonly description: string;\n    readonly acceptanceCriteria: string;\n    readonly cwd?: string;\n    readonly start: boolean;\n}',
+  },
+  {
+    name: 'TaskBoardDeleteResult',
+    declaration: 'export type TaskBoardDeleteResult = TaskBoardResult<TaskBoardDeleteValue>;',
+  },
+  {
+    name: 'TaskBoardDeleteValue',
+    declaration: 'export interface TaskBoardDeleteValue {\n    readonly deleted: true;\n    readonly taskId: TaskBoardTaskId;\n}',
+  },
+  {
+    name: 'TaskBoardEditPatch',
+    declaration: 'export interface TaskBoardEditPatch {\n    readonly title?: string;\n    readonly description?: string;\n    readonly acceptanceCriteria?: string;\n    readonly cwd?: string | null;\n}',
+  },
+  {
+    name: 'TaskBoardFailure',
+    declaration: 'export interface TaskBoardFailure {\n    readonly stage: \'session-create\' | \'prompt-admission\' | \'execution\' | \'recovery\';\n    readonly code: string;\n    readonly message: string;\n    readonly turn?: number | undefined;\n    readonly seq?: number | undefined;\n}',
+  },
+  {
+    name: 'TaskBoardFailureResult',
+    declaration: 'export type TaskBoardFailureResult = TaskBoardTaskNotFound | TaskBoardRevisionConflict | TaskBoardInvalidTransition | TaskBoardRoundAlreadyActive | TaskBoardSessionUnavailable | TaskBoardPromptRejected | TaskBoardInvalidRequest;',
+  },
+  {
+    name: 'TaskBoardInvalidRequest',
+    declaration: 'export interface TaskBoardInvalidRequest {\n    readonly code: \'invalid-request\';\n    readonly field: string;\n    readonly message: string;\n}',
+  },
+  {
+    name: 'TaskBoardInvalidTransition',
+    declaration: 'export interface TaskBoardInvalidTransition {\n    readonly code: \'invalid-transition\';\n    readonly status: TaskBoardStatus;\n    readonly operation: string;\n}',
+  },
+  {
+    name: 'TaskBoardPromptRejected',
+    declaration: 'export interface TaskBoardPromptRejected {\n    readonly code: \'prompt-rejected\';\n    readonly failure: TaskBoardFailure;\n}',
+  },
+  {
+    name: 'TaskBoardRejected',
+    declaration: 'export interface TaskBoardRejected {\n    readonly ok: false;\n    readonly error: TaskBoardFailureResult;\n}',
+  },
+  {
+    name: 'TaskBoardRejectRequest',
+    declaration: 'export interface TaskBoardRejectRequest {\n    readonly feedback: string;\n}',
+  },
+  {
+    name: 'TaskBoardReorderRequest',
+    declaration: 'export interface TaskBoardReorderRequest {\n    readonly beforeTaskId?: TaskBoardTaskId;\n}',
+  },
+  {
+    name: 'TaskBoardResult',
+    declaration: 'export type TaskBoardResult<T> = TaskBoardSuccess<T> | TaskBoardRejected;',
+  },
+  {
+    name: 'TaskBoardRevisionConflict',
+    declaration: 'export interface TaskBoardRevisionConflict {\n    readonly code: \'revision-conflict\';\n    readonly current: TaskBoardTask;\n}',
+  },
+  {
+    name: 'TaskBoardRound',
+    declaration: 'export interface TaskBoardRound {\n    readonly id: TaskBoardRoundId;\n    readonly ordinal: number;\n    readonly trigger: TaskBoardRoundTrigger;\n    readonly status: TaskBoardRoundStatus;\n    readonly sessionId: SessionId;\n    readonly rpcId: TaskBoardRpcId;\n    readonly prompt: string;\n    readonly startedAt: number;\n    readonly acceptedAt?: number | undefined;\n    readonly messageSeq?: number | undefined;\n    readonly turn?: number | undefined;\n    readonly startSeq?: number | undefined;\n    readonly turnEndSeq?: number | undefined;\n    readonly endSeq?: number | undefined;\n    readonly endedAt?: number | undefined;\n    readonly feedback?: string | undefined;\n    readonly failure?: TaskBoardFailure | undefined;\n}',
+  },
+  {
+    name: 'TaskBoardRoundAlreadyActive',
+    declaration: 'export interface TaskBoardRoundAlreadyActive {\n    readonly code: \'round-already-active\';\n    readonly roundId: TaskBoardRoundId;\n}',
+  },
+  {
+    name: 'TaskBoardRoundId',
+    declaration: 'export type TaskBoardRoundId = Branded<\'TaskBoardRoundId\'>;',
+  },
+  {
+    name: 'TaskBoardRoundStatus',
+    declaration: 'export type TaskBoardRoundStatus = \'starting\' | \'running\' | \'completed\' | \'failed\' | \'cancelled\';',
+  },
+  {
+    name: 'TaskBoardRoundTrigger',
+    declaration: 'export type TaskBoardRoundTrigger = \'initial\' | \'revision\' | \'retry\';',
+  },
+  {
+    name: 'TaskBoardRpcId',
+    declaration: 'export type TaskBoardRpcId = Branded<\'TaskBoardRpcId\'>;',
+  },
+  {
+    name: 'TaskBoardSessionRequest',
+    declaration: 'export interface TaskBoardSessionRequest {\n    readonly requestId: TaskBoardRpcId;\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'TaskBoardSessionResult',
+    declaration: 'export type TaskBoardSessionResult<T> = {\n    readonly ok: true;\n    readonly value: T;\n} | {\n    readonly ok: false;\n    readonly failure: TaskBoardFailure;\n};',
+  },
+  {
+    name: 'TaskBoardSessionUnavailable',
+    declaration: 'export interface TaskBoardSessionUnavailable {\n    readonly code: \'session-unavailable\';\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'TaskBoardSnapshot',
+    declaration: 'export interface TaskBoardSnapshot {\n    readonly boardRevision: number;\n    readonly tasks: readonly TaskBoardTask[];\n}',
+  },
+  {
+    name: 'TaskBoardSnapshotResult',
+    declaration: 'export type TaskBoardSnapshotResult = TaskBoardResult<TaskBoardSnapshot>;',
+  },
+  {
+    name: 'TaskBoardStatus',
+    declaration: 'export type TaskBoardStatus = \'initialized\' | \'running\' | \'review\' | \'done\' | \'failed\';',
+  },
+  {
+    name: 'TaskBoardSuccess',
+    declaration: 'export interface TaskBoardSuccess<T> {\n    readonly ok: true;\n    readonly value: T;\n}',
+  },
+  {
+    name: 'TaskBoardTask',
+    declaration: 'export interface TaskBoardTask {\n    readonly id: TaskBoardTaskId;\n    readonly sequence: number;\n    readonly identifier: string;\n    readonly revision: number;\n    readonly title: string;\n    readonly description: string;\n    readonly acceptanceCriteria: string;\n    readonly status: TaskBoardStatus;\n    readonly position: string;\n    readonly cwd?: string | undefined;\n    readonly rounds: readonly TaskBoardRound[];\n    readonly createdAt: number;\n    readonly updatedAt: number;\n    readonly completedAt?: number | undefined;\n}',
+  },
+  {
+    name: 'TaskBoardTaskId',
+    declaration: 'export type TaskBoardTaskId = Branded<\'TaskBoardTaskId\'>;',
+  },
+  {
+    name: 'TaskBoardTaskNotFound',
+    declaration: 'export interface TaskBoardTaskNotFound {\n    readonly code: \'task-not-found\';\n    readonly taskId: TaskBoardTaskId;\n}',
+  },
+  {
+    name: 'TaskBoardTaskRef',
+    declaration: 'export interface TaskBoardTaskRef {\n    readonly id: TaskBoardTaskId;\n    readonly revision: number;\n}',
+  },
+  {
+    name: 'TaskBoardTaskResult',
+    declaration: 'export type TaskBoardTaskResult = TaskBoardResult<TaskBoardTask>;',
   },
   {
     name: 'TerminalBackend',

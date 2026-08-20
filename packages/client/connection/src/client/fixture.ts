@@ -1440,6 +1440,51 @@ export interface FixtureOptions {
   createFrameOrder?: 'session-first' | 'workspace-first'
 }
 
+type FxTaskBoardStatus = 'initialized' | 'running' | 'review' | 'done' | 'failed'
+
+interface FxTaskBoardFailure {
+  readonly stage: 'session-create' | 'prompt-admission' | 'execution' | 'recovery'
+  readonly code: string
+  readonly message: string
+}
+
+interface FxTaskBoardRound {
+  readonly id: string
+  readonly ordinal: number
+  readonly trigger: 'initial' | 'revision' | 'retry'
+  readonly status: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'
+  readonly sessionId: string
+  readonly rpcId: string
+  readonly prompt: string
+  readonly acceptedAt?: number
+  readonly messageSeq?: number
+  readonly turn?: number
+  readonly startSeq?: number
+  readonly turnEndSeq?: number
+  readonly endSeq?: number
+  readonly startedAt: number
+  readonly endedAt?: number
+  readonly feedback?: string
+  readonly failure?: FxTaskBoardFailure
+}
+
+interface FxTaskBoardTask {
+  readonly id: string
+  readonly sequence: number
+  readonly identifier: string
+  readonly revision: number
+  readonly title: string
+  readonly description: string
+  readonly acceptanceCriteria: string
+  readonly status: FxTaskBoardStatus
+  readonly position: string
+  readonly cwd?: string
+  readonly rounds: readonly FxTaskBoardRound[]
+  readonly createdAt: number
+  readonly updatedAt: number
+  readonly completedAt?: number
+}
+
 /** Inbox pump shared by both stream generators (FrameQueue pattern: ONE abort listener hung
  *  outside the loop — a per-iteration {once:true} listener never fires for non-final rounds and
  *  piles up for the stream's lifetime). breakNow force-ends the stream without the
@@ -1518,6 +1563,87 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
     { sessionId: sid('fx-gamma'), updatedAt: Date.now() - 120_000, running: false, blank: false, cwd: '/tmp/fixture' },
   ]
   const logs = new Map<SessionId, SessionEvent[]>([[sid('fx-alpha'), buildAlphaLog()]])
+  const taskBoardTitles: Readonly<Record<FxTaskBoardStatus, string>> = {
+    initialized: 'Plan authentication boundary',
+    running: 'Implement task board interactions',
+    review: 'Review release workflow',
+    done: 'Publish operator guide',
+    failed: 'Repair provider timeout',
+  }
+  const taskBoardTasks: FxTaskBoardTask[] = options.empty
+    ? []
+    : (['initialized', 'running', 'review', 'done', 'failed'] as const).map((status, index) => {
+      const failure: FxTaskBoardFailure = {
+        stage: 'execution',
+        code: 'fixture-provider-timeout',
+        message: 'The deterministic fixture provider timed out.',
+      }
+      const sessionId = status === 'review'
+        ? 'fx-beta'
+        : status === 'done' || status === 'failed'
+          ? 'fx-gamma'
+          : 'fx-alpha'
+      const startedAt = Date.UTC(2026, 7, 14, 8, index)
+      const rounds: FxTaskBoardRound[] = status === 'initialized'
+        ? []
+        : [{
+          id: `fixture-round-${index + 1}`,
+          ordinal: 1,
+          trigger: 'initial',
+          status: status === 'running' ? 'running' : status === 'failed' ? 'failed' : 'completed',
+          sessionId,
+          rpcId: `fixture-rpc-${index + 1}`,
+          prompt: `Complete ${taskBoardTitles[status]}.`,
+          acceptedAt: startedAt,
+          messageSeq: 3,
+          turn: 0,
+          startSeq: 3,
+          ...status === 'running' ? {} : { turnEndSeq: 8, endSeq: 8 },
+          startedAt,
+          ...status === 'running' ? {} : { endedAt: Date.UTC(2026, 7, 14, 9, index) },
+          ...status === 'failed' ? { failure } : {},
+        }]
+      return {
+        id: `fixture-task-${index + 1}`,
+        sequence: index + 1,
+        identifier: `DSH-${index + 1}`,
+        revision: 1,
+        title: taskBoardTitles[status],
+        description: `Fixture ${status} task`,
+        acceptanceCriteria: `The ${status} workflow state is visible and actionable.`,
+        status,
+        position: 'a',
+        cwd: '/tmp/fixture',
+        rounds,
+        createdAt: Date.UTC(2026, 7, 14, 8, index),
+        updatedAt: Date.UTC(2026, 7, 14, 9, index),
+        ...status === 'done' ? { completedAt: Date.UTC(2026, 7, 14, 9, index) } : {},
+      }
+    })
+  let taskBoardRevision = 1
+  const mutateTaskBoard = (
+    ref: { readonly id: string; readonly revision: number } | undefined,
+    update: (current: FxTaskBoardTask) => FxTaskBoardTask,
+  ) => {
+    if (ref === undefined) throw new Error('fixture task-board mutation requires ref')
+    const index = taskBoardTasks.findIndex(task => task.id === ref.id)
+    if (index < 0) {
+      return { ok: true as const, value: { ok: false as const, error: { code: 'task-not-found' as const, taskId: ref.id } } }
+    }
+    const current = taskBoardTasks[index]
+    if (current === undefined) throw new Error('fixture task-board index became sparse')
+    if (current.revision !== ref.revision) {
+      return { ok: true as const, value: { ok: false as const, error: { code: 'revision-conflict' as const, current } } }
+    }
+    taskBoardRevision += 1
+    const next = {
+      ...update(current),
+      revision: current.revision + 1,
+      updatedAt: Date.UTC(2026, 7, 14, 10, taskBoardRevision),
+    }
+    taskBoardTasks[index] = next
+    return { ok: true as const, value: { ok: true as const, value: next } }
+  }
   const modelSelections = new Map<SessionId, ModelSelection>(sessions.map(session => [
     session.sessionId,
     { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
@@ -3005,11 +3131,232 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
           agentId: SessionId
           line?: string
           ref?: { id: string; revision: number }
-          request?: { objective?: string; maxGoalRounds?: number }
+          request?: {
+            objective?: string
+            maxGoalRounds?: number
+            feedback?: string
+            beforeTaskId?: string
+            title?: string
+            description?: string
+            acceptanceCriteria?: string
+            cwd?: string
+            start?: boolean
+          }
+          patch?: {
+            title?: string
+            description?: string
+            acceptanceCriteria?: string
+            cwd?: string | null
+          }
         }
       }).args
       const sessionId = args.agentId
       switch (endpoint) {
+        case 'taskBoard/snapshot':
+          return Promise.resolve({
+            ok: true,
+            value: {
+              ok: true,
+              value: {
+                boardRevision: taskBoardRevision,
+                tasks: taskBoardTasks,
+              },
+            },
+          })
+        case 'taskBoard/create': {
+          const request = args.request
+          const sequence = taskBoardTasks.reduce((maximum, task) => Math.max(maximum, task.sequence), 0) + 1
+          const createdAt = Date.UTC(2026, 7, 14, 10, sequence)
+          const explicitTitle = request?.title?.trim()
+          const description = request?.description?.trim() ?? ''
+          const running = request?.start === true
+          const title = explicitTitle === undefined || explicitTitle === ''
+            ? description.split('\n')[0]?.slice(0, 72) || `Task ${sequence}`
+            : explicitTitle
+          const task: FxTaskBoardTask = {
+            id: `fixture-task-${sequence}`,
+            sequence,
+            identifier: `DSH-${sequence}`,
+            revision: 1,
+            title,
+            description,
+            acceptanceCriteria: request?.acceptanceCriteria?.trim() ?? '',
+            status: running ? 'running' : 'initialized',
+            position: `z${sequence}`,
+            ...(request?.cwd === undefined ? {} : { cwd: request.cwd }),
+            rounds: running ? [{
+              id: `fixture-round-${sequence}-1`,
+              ordinal: 1,
+              trigger: 'initial',
+              status: 'running',
+              sessionId: 'fx-alpha',
+              rpcId: `fixture-rpc-${sequence}-1`,
+              prompt: `Complete ${title}.`,
+              acceptedAt: createdAt,
+              messageSeq: 9,
+              turn: 0,
+              startSeq: 9,
+              startedAt: createdAt,
+            }] : [],
+            createdAt,
+            updatedAt: createdAt,
+          }
+          taskBoardRevision += 1
+          taskBoardTasks.push(task)
+          return Promise.resolve({ ok: true, value: { ok: true, value: task } })
+        }
+        case 'taskBoard/edit':
+          return Promise.resolve(mutateTaskBoard(args.ref, (current) => {
+            const patch = args.patch ?? {}
+            const next = {
+              ...current,
+              ...(patch.title === undefined ? {} : { title: patch.title }),
+              ...(patch.description === undefined ? {} : { description: patch.description }),
+              ...(patch.acceptanceCriteria === undefined
+                ? {}
+                : { acceptanceCriteria: patch.acceptanceCriteria }),
+              ...(patch.cwd === undefined || patch.cwd === null ? {} : { cwd: patch.cwd }),
+            }
+            if (patch.cwd !== null) return next
+            const { cwd: _cwd, ...withoutCwd } = next
+            return withoutCwd
+          }))
+        case 'taskBoard/reorder':
+          return Promise.resolve(mutateTaskBoard(args.ref, (current) => {
+            const beforeTaskId = args.request?.beforeTaskId
+            const before = beforeTaskId === undefined
+              ? undefined
+              : taskBoardTasks.find(task => task.id === beforeTaskId)
+            return {
+              ...current,
+              position: before === undefined
+                ? `z${taskBoardRevision + 1}`
+                : `${before.position}-before-${current.sequence}`,
+            }
+          }))
+        case 'taskBoard/start':
+          return Promise.resolve(mutateTaskBoard(args.ref, (current) => {
+            const startedAt = Date.UTC(2026, 7, 14, 10, current.sequence)
+            return {
+              ...current,
+              status: 'running',
+              rounds: [
+                ...current.rounds,
+                {
+                  id: `fixture-round-${current.sequence}-${current.rounds.length + 1}`,
+                  ordinal: current.rounds.length + 1,
+                  trigger: 'initial',
+                  status: 'running',
+                  sessionId: 'fx-alpha',
+                  rpcId: `fixture-rpc-${current.sequence}-${current.rounds.length + 1}`,
+                  prompt: `Complete ${current.title}.`,
+                  startedAt,
+                  acceptedAt: startedAt,
+                  messageSeq: 9,
+                  turn: 0,
+                  startSeq: 9,
+                },
+              ],
+            }
+          }))
+        case 'taskBoard/stop':
+          return Promise.resolve(mutateTaskBoard(args.ref, current => ({
+            ...current,
+            status: 'failed',
+            rounds: current.rounds.map((round, index) => index === current.rounds.length - 1
+              ? {
+                ...round,
+                status: 'cancelled',
+                endedAt: Date.UTC(2026, 7, 14, 11, current.sequence),
+                failure: {
+                  stage: 'execution',
+                  code: 'fixture-user-stop',
+                  message: 'The fixture run was stopped.',
+                },
+              }
+              : round),
+          })))
+        case 'taskBoard/approve':
+          return Promise.resolve(mutateTaskBoard(args.ref, current => ({
+            ...current,
+            status: 'done',
+            completedAt: Date.UTC(2026, 7, 14, 11, current.sequence),
+          })))
+        case 'taskBoard/reject':
+          return Promise.resolve(mutateTaskBoard(args.ref, current => ({
+            ...current,
+            status: 'running',
+            rounds: [
+              ...current.rounds,
+              {
+                id: `fixture-round-${current.sequence}-${current.rounds.length + 1}`,
+                ordinal: current.rounds.length + 1,
+                trigger: 'revision',
+                status: 'running',
+                sessionId: current.rounds.at(-1)?.sessionId ?? 'fx-alpha',
+                rpcId: `fixture-rpc-${current.sequence}-${current.rounds.length + 1}`,
+                prompt: args.request?.feedback ?? '',
+                acceptedAt: Date.UTC(2026, 7, 14, 10, current.sequence),
+                messageSeq: 9,
+                turn: current.rounds.length,
+                startSeq: 9,
+                startedAt: Date.UTC(2026, 7, 14, 10, current.sequence),
+                feedback: args.request?.feedback ?? '',
+              },
+            ],
+          })))
+        case 'taskBoard/retry':
+          return Promise.resolve(mutateTaskBoard(args.ref, current => ({
+            ...current,
+            status: 'running',
+            rounds: [
+              ...current.rounds,
+              {
+                id: `fixture-round-${current.sequence}-${current.rounds.length + 1}`,
+                ordinal: current.rounds.length + 1,
+                trigger: 'retry',
+                status: 'running',
+                sessionId: 'fx-alpha',
+                rpcId: `fixture-rpc-${current.sequence}-${current.rounds.length + 1}`,
+                prompt: `Retry ${current.title}.`,
+                acceptedAt: Date.UTC(2026, 7, 14, 10, current.sequence),
+                messageSeq: 9,
+                turn: 0,
+                startSeq: 9,
+                startedAt: Date.UTC(2026, 7, 14, 10, current.sequence),
+              },
+            ],
+          })))
+        case 'taskBoard/reopen':
+          return Promise.resolve(mutateTaskBoard(args.ref, (current) => {
+            const { completedAt: _completedAt, ...withoutCompletion } = current
+            return { ...withoutCompletion, status: 'initialized' }
+          }))
+        case 'taskBoard/delete': {
+          const ref = args.ref
+          if (ref === undefined) throw new Error('fixture task-board deletion requires ref')
+          const index = taskBoardTasks.findIndex(task => task.id === ref.id)
+          if (index < 0) {
+            return Promise.resolve({
+              ok: true,
+              value: { ok: false, error: { code: 'task-not-found', taskId: ref.id } },
+            })
+          }
+          const current = taskBoardTasks[index]
+          if (current === undefined) throw new Error('fixture task-board index became sparse')
+          if (current.revision !== ref.revision) {
+            return Promise.resolve({
+              ok: true,
+              value: { ok: false, error: { code: 'revision-conflict', current } },
+            })
+          }
+          taskBoardRevision += 1
+          taskBoardTasks.splice(index, 1)
+          return Promise.resolve({
+            ok: true,
+            value: { ok: true, value: { deleted: true, taskId: ref.id } },
+          })
+        }
         case 'commands/list': return Promise.resolve(commandRemotes.list(sessionId))
         case 'commands/execute': return Promise.resolve(commandRemotes.execute(sessionId, args.line as string))
         case 'goals/create': return Promise.resolve(goalRemotes.create(sessionId, {

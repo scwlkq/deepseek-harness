@@ -18,10 +18,12 @@ const requiredArtifacts = [
   'packages/client/connection/lib/client.js',
   'packages/client/connection/lib/index.js',
   'packages/api/remotes/lib/client.js',
+  'packages/api/remotes/lib/index.js',
   'packages/core/agent/lib/index.js',
   'packages/core/session/lib/index.js',
   'packages/goal/goal/lib/index.js',
   'packages/goal/goal/lib/typert.host.js',
+  'packages/task-board/task-board/lib/typert.remote-client.js',
   'packages/api/gateway/lib/client.js',
   'packages/api/gateway/lib/index.js',
   'packages/typert/registry/lib/client.js',
@@ -41,6 +43,7 @@ describe.skipIf(!requiredArtifacts)('Goal Remote built LIB chain', () => {
       registryClient: 'packages/typert/registry/lib/client.js',
       registryHost: 'packages/typert/registry/lib/index.js',
       remotesClient: 'packages/api/remotes/lib/client.js',
+      remotesHost: 'packages/api/remotes/lib/index.js',
       session: 'packages/core/session/lib/index.js',
     }).map(([key, path]) => [key, artifactUrl(path)]))
     const script = `
@@ -54,7 +57,8 @@ describe.skipIf(!requiredArtifacts)('Goal Remote built LIB chain', () => {
       const { default: TypertRemoteService } = await import(urls.apiGatewayHost)
       const { default: GoalService } = await import(urls.goal)
       const { TYPERT } = await import(urls.goalTypert)
-      const { default: TypertRegistry } = await import(urls.registryHost)
+    const { default: TypertRegistry } = await import(urls.registryHost)
+    const { API_REMOTE_FORWARDED_EVENTS } = await import(urls.remotesHost)
       const { Session, SessionId } = await import(urls.session)
 
       const routes = []
@@ -137,9 +141,21 @@ describe.skipIf(!requiredArtifacts)('Goal Remote built LIB chain', () => {
         const plugin = instantiate(id)
         await client.plugin({ inject: plugin.inject, apply: plugin.apply })
       }
-      client.typert.contexts.registerClient('agent', {
-        identity: candidate => candidate.builtAgentId,
-      })
+    client.typert.contexts.registerClient('agent', {
+      identity: candidate => candidate.builtAgentId,
+    })
+
+    const taskBoardNamespace = typeof client.remote.taskBoard.snapshot === 'function'
+    const taskBoardForwarded = API_REMOTE_FORWARDED_EVENTS.includes('task-board/changed')
+    const expectedTaskBoardEvent = {
+      boardRevision: 7,
+      operation: 'deleted',
+      taskId: 'task-built-event',
+      deleted: true,
+    }
+    let taskBoardEvent
+    client.remote.$on('task-board/changed', change => { taskBoardEvent = change })
+    client.remote.$dispatch('task-board/changed', [expectedTaskBoardEvent])
 
       let invalidRejected = false
       try {
@@ -155,20 +171,23 @@ describe.skipIf(!requiredArtifacts)('Goal Remote built LIB chain', () => {
         rootResult.value.ref,
         { objective: 'edited root goal' },
       )
-      const agentContext = client.extend({ builtAgentId: scopedAgent.id })
-      const scopedResult = await agentContext.remote.goals.create({ objective: 'scoped goal', maxGoalRounds: 3 })
+    const agentContext = client.extend({ builtAgentId: scopedAgent.id })
+    const scopedResult = await agentContext.remote.goals.create({ objective: 'scoped goal', maxGoalRounds: 3 })
       const result = {
         invalidRejected,
         rootResult: rootResult.value,
         rootEdit: rootEdit.value,
         scopedResult: scopedResult.value,
         rootGoal: host.goals.get(rootAgent)?.objective,
-        scopedGoal: host.goals.get(scopedAgent)?.objective,
-        rootEvents: rootAgent.session.events.length,
-        scopedEvents: scopedAgent.session.events.length,
+      scopedGoal: host.goals.get(scopedAgent)?.objective,
+      rootEvents: rootAgent.session.events.length,
+      scopedEvents: scopedAgent.session.events.length,
+      taskBoardNamespace,
+      taskBoardForwarded,
+      taskBoardEvent,
       }
 
-      await client.fiber.dispose()
+    await client.fiber.dispose()
       await new Promise((resolveClose, rejectClose) => server.close(error => {
         if (error === undefined) resolveClose()
         else rejectClose(error)
@@ -188,6 +207,9 @@ describe.skipIf(!requiredArtifacts)('Goal Remote built LIB chain', () => {
       scopedGoal: string
       rootEvents: number
       scopedEvents: number
+      taskBoardNamespace: boolean
+      taskBoardForwarded: boolean
+      taskBoardEvent: unknown
     }
     expect(output).toMatchObject({
       invalidRejected: true,
@@ -198,6 +220,14 @@ describe.skipIf(!requiredArtifacts)('Goal Remote built LIB chain', () => {
       scopedGoal: 'scoped goal',
       rootEvents: 2,
       scopedEvents: 1,
+      taskBoardNamespace: true,
+      taskBoardForwarded: true,
+      taskBoardEvent: {
+        boardRevision: 7,
+        operation: 'deleted',
+        taskId: 'task-built-event',
+        deleted: true,
+      },
     })
     expect(output.rootResult.ref.id).toMatch(/^goal-/)
     expect(output.scopedResult.ref.id).toMatch(/^goal-/)

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-14-task-board-plugin.md
+2026-08-14-task-board-plugin.md: 729d53fb80fa7b736342e4d4946b9d240c41a8c6
+2026-08-14-task-board-plugin.zh.md: c2d5cf4e332fa54664c8eff1cc8eb53cf80201ff

@@ -99,6 +99,17 @@
     - id: api-gateway
       name: '@deepseek-ai/dsh-host-apiproxy'
 
+    # One Loader entry mounts the Task Board Session provider and durable
+    # reviewed workflow while keeping internal packages out of settings.
+    - id: task-board
+      name: '@deepseek-ai/dsh-task-board-session-apiproxy'
+      config:
+        automaticTitleMaxChars: 80
+        maxTitleBytes: 4096
+        maxDescriptionBytes: 65536
+        maxAcceptanceCriteriaBytes: 65536
+        maxFeedbackBytes: 32768
+
     - id: cordis-host-runner
       name: '@deepseek-ai/dsh-cordis-host-runner'
 
@@ -218,6 +229,10 @@
 
     - id: ui-workspace
       name: '@deepseek-ai/dsh-client-ui-workspace'
+
+    # Persistent task-board launcher and full-frame workflow overlay.
+    - id: ui-task-board
+      name: '@deepseek-ai/dsh-client-ui-task-board'
 
     # Input triggers: the '/' | '@' pipeline (ui-input-trigger), the command surface over
     # it (ui-commands), and the two reference sources (ui-skill / ui-subagent).

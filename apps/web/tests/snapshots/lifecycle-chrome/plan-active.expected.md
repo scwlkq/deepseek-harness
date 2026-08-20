@@ -17,6 +17,7 @@
     - img
     - text: workspace
   - treeitem "New Session" [selected]
+- button "Task Board"
 - button "Settings":
   - img
   - text: Settings

@@ -2244,6 +2244,45 @@ export interface Config {
 
 Source: [`packages/core/system-prompt/src/index.ts:186`](../packages/core/system-prompt/src/index.ts)
 
+<a id="deepseek-aidsh-task-board"></a>
+
+## `@deepseek-ai/dsh-task-board`
+
+Requires: `agents` · `sessionPersistence` · `sessions` · `storageDomain` · `taskBoardSession`
+
+```ts config-catalog
+/** Deployment-varying limits for task-board user text. */
+export interface Config {
+  /** Maximum Unicode code points retained in an automatic title. */
+  readonly automaticTitleMaxChars: number
+  /** Maximum UTF-8 byte length accepted for a manual title. */
+  readonly maxTitleBytes: number
+  /** Maximum UTF-8 byte length accepted for task description. */
+  readonly maxDescriptionBytes: number
+  /** Maximum UTF-8 byte length accepted for acceptance criteria. */
+  readonly maxAcceptanceCriteriaBytes: number
+  /** Maximum UTF-8 byte length accepted for rejection feedback. */
+  readonly maxFeedbackBytes: number
+}
+```
+
+Source: [`packages/task-board/task-board/src/index.ts:88`](../packages/task-board/task-board/src/index.ts)
+
+<a id="deepseek-aidsh-task-board-session-apiproxy"></a>
+
+## `@deepseek-ai/dsh-task-board-session-apiproxy`
+
+Requires: `apiProxy`
+
+```ts config-catalog
+/** User-facing Task Board configuration. */
+export type Config = TaskBoardConfig
+```
+
+Depends on: [`TaskBoardConfig`](#deepseek-aidsh-task-board)
+
+Source: [`packages/task-board/session-apiproxy/src/index.ts:117`](../packages/task-board/session-apiproxy/src/index.ts)
+
 <a id="deepseek-aidsh-terminal-bash"></a>
 
 ## `@deepseek-ai/dsh-terminal-bash`
@@ -3054,6 +3093,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-client-ui-sidebar` ([`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-skill` ([`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-subagent` ([`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-task-board` ([`packages/client/ui-task-board/src/index.ts`](../packages/client/ui-task-board/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-theme` ([`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-tool` ([`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-trajectory` ([`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts))

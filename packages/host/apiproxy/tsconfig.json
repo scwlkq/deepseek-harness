@@ -87,6 +87,9 @@
       "path": "../../interaction/user-questions"
     },
     {
+      "path": "../../task-board/task-board"
+    },
+    {
       "path": "../../workspace/workspace"
     },
     {
