@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished, vi } from 'vitest'
-import { desktopApplicationIcon } from '../src/desktop-entry.ts'
+import { desktopApplicationIcon, desktopDataDirectories } from '../src/desktop-entry.ts'
 import { nativeFileApplications, openNativeFileApplication } from '../src/file-applications.ts'
 import type { NativeCommandRunner } from '../src/runner.ts'
 
@@ -19,7 +19,7 @@ async function fixture() {
     stdout: command === 'gio' && args[0] === 'info' ? '  standard::content-type: audio/mpeg\n'
       : command === 'env' ? 'Default application for audio/mpeg: player.desktop\nRegistered applications:\n  player.desktop\n  nested-other.desktop\n  missing.desktop\nRecommended applications:\n  player.desktop\n' : '', stderr: '',
   }))
-  return { root, run, facts: { platform: 'linux' as const, osRelease: 'linux', env: { XDG_DATA_HOME: root, XDG_DATA_DIRS: '', LANG: 'zh_CN.UTF-8' }, run } }
+  return { root, run, facts: { platform: 'linux' as const, osRelease: 'linux', env: { XDG_DATA_HOME: root, XDG_DATA_DIRS: join(root, 'absent'), LANG: 'zh_CN.UTF-8' }, run } }
 }
 
 it('deduplicates GIO handlers, resolves nested ids, localizes names, and reuses desktop artwork', async () => {
@@ -61,4 +61,12 @@ it('tolerates absent desktop roots and directory-shaped icon paths without a loc
     ...facts, env: { XDG_DATA_HOME: root, XDG_DATA_DIRS: join(root, 'absent') },
   })
   expect(apps[0]?.name).toBe('Player')
+})
+
+it('uses XDG data defaults when variables are present but empty', () => {
+  expect(desktopDataDirectories('/home/tester', { XDG_DATA_HOME: '', XDG_DATA_DIRS: '' })).toEqual([
+    '/home/tester/.local/share',
+    '/usr/local/share',
+    '/usr/share',
+  ])
 })

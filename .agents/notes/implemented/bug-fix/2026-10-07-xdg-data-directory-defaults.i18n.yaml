@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-07-xdg-data-directory-defaults.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-07-xdg-data-directory-defaults.md
+/agent-note-apply-xdg-data-directory-defaults-for-empty-variables:
+  en: 6b056b4e812ee4f3
+  zh: da45d96c2f240e20
+/agent-note-apply-xdg-data-directory-defaults-for-empty-variables/problem:
+  en: 7f6c37fb6511909b
+  zh: 2455a71fabf0b67d
+/agent-note-apply-xdg-data-directory-defaults-for-empty-variables/decision:
+  en: c430b160dc5753c8
+  zh: 404b4a19ac2e7250
+/agent-note-apply-xdg-data-directory-defaults-for-empty-variables/alternatives-considered:
+  en: c4fa414b189ef5d4
+  zh: 55904945af393ed7
+/agent-note-apply-xdg-data-directory-defaults-for-empty-variables/consequences:
+  en: 91743e95c492c86a
+  zh: fccdf579565e10e0
+/agent-note-apply-xdg-data-directory-defaults-for-empty-variables/verification:
+  en: 8a75fb6f43c059ca
+  zh: 4d65cf9c671d90e7
